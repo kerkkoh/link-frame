@@ -277,7 +277,7 @@ const loadProperties = () => {
         console.log(`Loaded properties: ${JSON.stringify(props)}`)
     })
 }
-chrome.storage.sync.addListener(_ => {
+chrome.storage.onChanged.addListener(_ => {
     console.log(`Loading changed properties...`)
     loadProperties()
 })
