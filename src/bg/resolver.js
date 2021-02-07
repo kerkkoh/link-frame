@@ -35,11 +35,11 @@ const getOptionValue = (key, defaultValue) => {
 }
 
 const fetchDns = (url, dns) => {
-    const rs = syncFetch(url, {
+    const rs = syncFetch(url, dns ? {
         headers: {
             'x-dns': dns
         }
-    })
+    } : {})
 
     if (!rs.response) {
         return {
@@ -124,6 +124,17 @@ const resolveRedirect = (domain, dns) => {
     }
 }
 
+const resolveFallback = (domain) => {
+    console.log(`Called resolveBackup for domain: ${domain}`)
+    const queryUrl = `${(getResolver())}/resolve?name=${domain}`
+    const result = fetchDns(queryUrl, undefined);
+    console.log(`resolveBackup result: ${JSON.stringify(result)}`)
+    return result.Status === 0 &&
+           result.Answer.length &&
+           typeof result.Answer[0].data === "string" ?
+           result.Answer[0].data : undefined
+}
+
 const extractHash = response => {
     const hashRecords = response.Answer
         .map(answer => ({
@@ -172,6 +183,20 @@ const resolve = (domain, tld) => {
     const info = resolveBlockchainInfo(tld)
     if (!info.result || !info.result.records) {
         console.log(`No records in blockchain for tld: ${tld}`)
+
+        // The default HSD node doesn't return recent domains
+        // ... but the dns server does, so here's a (bad, probably not ideal) fallback!
+
+        console.log(`Checking dns server for ${tld}`)
+        const backupIp = resolveFallback(domain)
+        if (backupIp) {
+            console.log(`Found ip from dns server: ${backupIp}`)
+            return {
+                'success': true,
+                'kind': 'ip',
+                'address': backupIp
+            }
+        }
 
         return {
             'success': false
